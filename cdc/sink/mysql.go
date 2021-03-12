@@ -662,6 +662,14 @@ func (s *mysqlSink) notifyAndWaitExec(ctx context.Context) {
 	}
 }
 
+func debugTxn(name string, txn *model.SingleTableTxn) {
+	log.Debug("print txn", zap.String("name", name))
+	for _, row := range txn.Rows {
+		log.Debug("show row", zap.String("name", name), zap.Any("row", row))
+	}
+	log.Debug("print txn finished", zap.String("name", name))
+}
+
 func (s *mysqlSink) dispatchAndExecTxns(ctx context.Context, txnsGroup map[model.TableID][]*model.SingleTableTxn) {
 	nWorkers := s.params.workerCount
 	causality := newCausality()
@@ -672,6 +680,7 @@ func (s *mysqlSink) dispatchAndExecTxns(ctx context.Context, txnsGroup map[model
 		s.workers[idx].appendTxn(ctx, txn)
 	}
 	resolveConflict := func(txn *model.SingleTableTxn) {
+
 		keys := genTxnKeys(txn)
 		if conflict, idx := causality.detectConflict(keys); conflict {
 			if idx >= 0 {
@@ -687,6 +696,7 @@ func (s *mysqlSink) dispatchAndExecTxns(ctx context.Context, txnsGroup map[model
 	}
 	h := newTxnsHeap(txnsGroup)
 	h.iter(func(txn *model.SingleTableTxn) {
+		debugTxn("heap", txn)
 		startTime := time.Now()
 		resolveConflict(txn)
 		s.metricConflictDetectDurationHis.Observe(time.Since(startTime).Seconds())
@@ -790,6 +800,7 @@ func (w *mysqlSinkWorker) run(ctx context.Context) (err error) {
 					return errors.Trace(err)
 				}
 			}
+			debugTxn("worker", txn)
 			replicaID = txn.ReplicaID
 			toExecRows = append(toExecRows, txn.Rows...)
 			lastCommitTs = txn.CommitTs
