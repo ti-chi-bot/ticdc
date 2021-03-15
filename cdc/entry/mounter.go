@@ -194,6 +194,7 @@ func (m *mounterImpl) codecWorker(ctx context.Context, index int) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
+		rowEvent.RegionID = pEvent.RawKV.RegionID
 		pEvent.Row = rowEvent
 		pEvent.RawKV.Value = nil
 		pEvent.RawKV.OldValue = nil

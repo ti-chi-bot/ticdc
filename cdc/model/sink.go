@@ -227,6 +227,7 @@ type RowChangedEvent struct {
 	ReplicaID    uint64    `json:"replica-id"`
 	Columns      []*Column `json:"columns"`
 	PreColumns   []*Column `json:"pre-columns"`
+	RegionID uint64 `json:"region-id"`
 	IndexColumns [][]int   `json:"-"`
 
 	// approximate size of this event, calculate by tikv proto bytes size

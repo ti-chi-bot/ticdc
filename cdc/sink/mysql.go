@@ -141,6 +141,12 @@ func (s *mysqlSink) flushRowChangedEvents(ctx context.Context, receiver *notify.
 		}
 		resolvedTs := atomic.LoadUint64(&s.resolvedTs)
 		resolvedTxnsMap := s.txnCache.Resolved(resolvedTs)
+
+		for _, txns := range resolvedTxnsMap {
+			for _, txn := range txns {
+				debugTxn("flush", txn)
+			}
+		}
 		if len(resolvedTxnsMap) == 0 {
 			for _, worker := range s.workers {
 				atomic.StoreUint64(&worker.checkpointTs, resolvedTs)
@@ -663,11 +669,11 @@ func (s *mysqlSink) notifyAndWaitExec(ctx context.Context) {
 }
 
 func debugTxn(name string, txn *model.SingleTableTxn) {
-	log.Debug("print txn", zap.String("name", name))
+	log.Debug("print txn", zap.String("name", name), zap.Uint64("startts", txn.StartTs))
 	for _, row := range txn.Rows {
 		log.Debug("show row", zap.String("name", name), zap.Any("row", row))
 	}
-	log.Debug("print txn finished", zap.String("name", name))
+	log.Debug("print txn finished", zap.String("name", name), zap.Uint64("startts", txn.StartTs))
 }
 
 func (s *mysqlSink) dispatchAndExecTxns(ctx context.Context, txnsGroup map[model.TableID][]*model.SingleTableTxn) {
@@ -680,7 +686,6 @@ func (s *mysqlSink) dispatchAndExecTxns(ctx context.Context, txnsGroup map[model
 		s.workers[idx].appendTxn(ctx, txn)
 	}
 	resolveConflict := func(txn *model.SingleTableTxn) {
-
 		keys := genTxnKeys(txn)
 		if conflict, idx := causality.detectConflict(keys); conflict {
 			if idx >= 0 {
@@ -696,7 +701,6 @@ func (s *mysqlSink) dispatchAndExecTxns(ctx context.Context, txnsGroup map[model
 	}
 	h := newTxnsHeap(txnsGroup)
 	h.iter(func(txn *model.SingleTableTxn) {
-		debugTxn("heap", txn)
 		startTime := time.Now()
 		resolveConflict(txn)
 		s.metricConflictDetectDurationHis.Observe(time.Since(startTime).Seconds())
@@ -800,7 +804,6 @@ func (w *mysqlSinkWorker) run(ctx context.Context) (err error) {
 					return errors.Trace(err)
 				}
 			}
-			debugTxn("worker", txn)
 			replicaID = txn.ReplicaID
 			toExecRows = append(toExecRows, txn.Rows...)
 			lastCommitTs = txn.CommitTs
