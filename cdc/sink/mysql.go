@@ -141,7 +141,7 @@ func (s *mysqlSink) flushRowChangedEvents(ctx context.Context, receiver *notify.
 		}
 		resolvedTs := atomic.LoadUint64(&s.resolvedTs)
 		resolvedTxnsMap := s.txnCache.Resolved(resolvedTs)
-
+		log.Info("LEOPPRO resolvedts in sink", zap.Uint64("resolvedTs", resolvedTs))
 		for _, txns := range resolvedTxnsMap {
 			for _, txn := range txns {
 				debugTxn("flush", txn)

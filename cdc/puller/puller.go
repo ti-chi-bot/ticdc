@@ -250,6 +250,10 @@ func (p *pullerImpl) Run(ctx context.Context) error {
 					continue
 				}
 				lastResolvedTs = resolvedTs
+
+				log.Info("LEOPPRO resolvedts in puller",
+					zap.Uint64("resolvedTs", resolvedTs),
+					zap.Int64("tableID", tableID))
 				err := output(&model.RawKVEntry{CRTs: resolvedTs, OpType: model.OpTypeResolved, RegionID: e.RegionID})
 				if err != nil {
 					return errors.Trace(err)

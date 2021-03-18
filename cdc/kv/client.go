@@ -73,7 +73,7 @@ const (
 // hard code switch
 // true: use kv client v2, which has a region worker for each stream
 // false: use kv client v1, which runs a goroutine for every single region
-var enableKVClientV2 = true
+var enableKVClientV2 = false
 
 type singleRegionInfo struct {
 	verID  tikv.RegionVerID
@@ -1306,6 +1306,7 @@ func (s *eventFeedSession) singleEventFeed(
 	metricSendEventCommittedCounter := sendEventCounter.WithLabelValues("committed", captureAddr, changefeedID)
 
 	initialized := false
+	log.Info("LEOPPRO start region feed", zap.Uint64("regionID", regionID), zap.Uint64("startTs", startTs))
 
 	matcher := newMatcher()
 	advanceCheckTicker := time.NewTicker(time.Second * 5)
@@ -1313,6 +1314,7 @@ func (s *eventFeedSession) singleEventFeed(
 	lastReceivedEventTime := time.Now()
 	startFeedTime := time.Now()
 	lastResolvedTs := startTs
+	defer log.Info("LEOPPRO stop region feed", zap.Uint64("regionID", regionID), zap.Uint64("lastResolvedTs", lastResolvedTs))
 	handleResolvedTs := func(resolvedTs uint64) error {
 		if !initialized {
 			return nil
@@ -1440,6 +1442,8 @@ func (s *eventFeedSession) singleEventFeed(
 							if err != nil {
 								return lastResolvedTs, errors.Trace(err)
 							}
+
+							log.Info("LEOPPRO revent", zap.Uint64("regionID", regionID), zap.Uint64("startts", revent.Val.StartTs), zap.Uint64("crts", revent.Val.CRTs))
 							select {
 							case s.eventCh <- revent:
 								metricSendEventCommitCounter.Inc()
@@ -1462,6 +1466,7 @@ func (s *eventFeedSession) singleEventFeed(
 								zap.Uint64("regionID", regionID))
 							return lastResolvedTs, errUnreachable
 						}
+						log.Info("LEOPPRO revent", zap.Uint64("regionID", regionID), zap.Uint64("startts", revent.Val.StartTs), zap.Uint64("crts", revent.Val.CRTs))
 						select {
 						case s.eventCh <- revent:
 							metricSendEventCommittedCounter.Inc()
@@ -1495,6 +1500,7 @@ func (s *eventFeedSession) singleEventFeed(
 							return lastResolvedTs, errors.Trace(err)
 						}
 
+						log.Info("LEOPPRO revent", zap.Uint64("regionID", regionID), zap.Uint64("startts", revent.Val.StartTs), zap.Uint64("crts", revent.Val.CRTs))
 						select {
 						case s.eventCh <- revent:
 							metricSendEventCommitCounter.Inc()
